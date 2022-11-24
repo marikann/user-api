@@ -3,7 +3,7 @@ package service
 import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"sync"
+	"golang.org/x/sync/errgroup"
 	"user-api/internal/errors"
 	handlerTypes "user-api/internal/handler/types"
 	serviceTypes "user-api/internal/service/types"
@@ -144,33 +144,21 @@ func (s *Service) GetAll(limit, offset int64) serviceTypes.GetAllUsersResponse {
 	users := make([]types.User, 0)
 	var totalCount int64
 
-	var wg sync.WaitGroup
-	var err error
+	errGroup := errgroup.Group{}
 
-	errs := make(chan error, 2)
-
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
+	errGroup.Go(func() error {
 		var returnedErr error
 		users, returnedErr = s.Repository.Find(limit, offset, bson.M{})
-		errs <- returnedErr
-	}()
+		return returnedErr
+	})
 
-	go func() {
-		defer wg.Done()
+	errGroup.Go(func() error {
 		var returnedErr error
 		totalCount, returnedErr = s.Repository.CountDocuments(bson.M{})
-		errs <- returnedErr
-	}()
+		return returnedErr
+	})
 
-	wg.Wait()
-	err = <-errs
-
-	close(errs)
-
-	if err != nil {
+	if err := errGroup.Wait(); err != nil {
 		panic(err)
 	}
 
