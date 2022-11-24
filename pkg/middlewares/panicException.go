@@ -13,7 +13,7 @@ func PanicExceptionHandling() echo.MiddlewareFunc {
 			defer func() {
 				if err := recover(); err != nil {
 					switch v := err.(type) {
-					case errors.Error:
+					case *errors.Error:
 						v.Log()
 						c.JSON(v.StatusCode, v.Public)
 					default:
